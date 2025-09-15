@@ -38,7 +38,7 @@ flowchart TD
 5. [Emotion Prediction Model
 ](05_emotion_prediction_model_.md)
 
----# Chapter 1: Streamlit User Interface
+# Chapter 1: Streamlit User Interface
 
 Have you ever used an app on your phone or computer that just *works*? You tap a button, and something happens. You see a live video, or text appears. This friendly way of interacting with an application is called a User Interface, or UI. For our "Face Emotion Detection" project, we need a simple control panel like this so anyone can easily use it to detect emotions.
 
