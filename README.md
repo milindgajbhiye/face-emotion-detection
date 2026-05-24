@@ -5,7 +5,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.28-green)
 ![License](https://img.shields.io/badge/License-MIT-red)
 
-A lightweight Python application that detects emotions from faces in real-time using your webcam. Built with TensorFlow, OpenCV, and Streamlit, this app classifies emotions like Angry, Happy, Sad, and more.
+A lightweight Python application that detects emotions from faces in real-time using your webcam. Built with TensorFlow, OpenCV, and Streamlit, this app classifies emotions like Angry, Happy, Sad, and many more.
 
 ---
 
