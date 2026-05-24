@@ -3,8 +3,7 @@ import numpy as np
 import streamlit as st
 import tensorflow as tf
 import os
-import urllib.request
-from collections import deque, Counter
+from collections import Counter
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # only errors
 
@@ -14,47 +13,18 @@ emotion_model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
-AGE_BUCKETS = ['0-2', '4-6', '8-12', '15-20', '25-32', '38-43', '48-53', '60-100']
-AGE_MEAN_VALUES = (78.4263377603, 87.7689143744, 114.895847746)
-AGE_PROTO_PATH = 'models/deploy_age.prototxt'
-AGE_MODEL_PATH = 'models/age_net.caffemodel'
-AGE_PROTO_URL = 'https://raw.githubusercontent.com/spmallick/learnopencv/master/AgeGender/AgeNet/deploy_age.prototxt'
-AGE_MODEL_URL = 'https://raw.githubusercontent.com/spmallick/learnopencv/master/AgeGender/AgeNet/age_net.caffemodel'
 
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 
 @st.cache_resource(show_spinner=False)
-def load_age_net():
-    os.makedirs('models', exist_ok=True)
-
-    if not os.path.exists(AGE_PROTO_PATH):
-        urllib.request.urlretrieve(AGE_PROTO_URL, AGE_PROTO_PATH)
-
-    if not os.path.exists(AGE_MODEL_PATH):
-        urllib.request.urlretrieve(AGE_MODEL_URL, AGE_MODEL_PATH)
-
-    return cv2.dnn.readNetFromCaffe(AGE_PROTO_PATH, AGE_MODEL_PATH)
-
-
-def predict_age(face_bgr, age_net):
-    face_for_age = cv2.resize(face_bgr, (227, 227))
-    blob = cv2.dnn.blobFromImage(
-        face_for_age,
-        scalefactor=1.0,
-        size=(227, 227),
-        mean=AGE_MEAN_VALUES,
-        swapRB=False,
-    )
-    age_net.setInput(blob)
-    age_preds = age_net.forward()[0]
-    age_idx = int(np.argmax(age_preds))
-    return AGE_BUCKETS[age_idx], float(age_preds[age_idx])
+def load_emotion_model():
+    return tf.keras.models.load_model(MODEL_PATH, compile=False)
 
 
 #preprocess and detect emotion 
-def detect_emotion(frame):
+def detect_emotion(frame, emotion_model):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
     results = []
@@ -198,14 +168,11 @@ def main():
     with right_col:
         st.markdown("### Explainability")
         status_box = st.empty()
-        metric_col_1, metric_col_2, metric_col_3 = st.columns(3)
+        metric_col_1, metric_col_2 = st.columns(2)
         faces_metric = metric_col_1.empty()
         confidence_metric = metric_col_2.empty()
-        age_metric = metric_col_3.empty()
         st.markdown("#### Emotion confidence distribution")
         bars_placeholder = st.empty()
-        st.markdown("#### Recent trend (last 20 detections)")
-        trend_placeholder = st.empty()
         st.markdown(
             """
             <div class="note">
@@ -216,18 +183,12 @@ def main():
             unsafe_allow_html=True,
         )
 
-    recent_emotions = deque(maxlen=20)
     cap = None
-    age_net = None
-    age_model_error = None
+    emotion_model = None
 
     if run:
-        try:
-            with st.spinner("Loading age prediction model..."):
-                age_net = load_age_net()
-        except Exception as ex:
-            age_model_error = str(ex)
-
+        with st.spinner("Loading emotion model..."):
+            emotion_model = load_emotion_model()
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
             st.error("Could not open webcam. Check permissions and try again.")
@@ -244,7 +205,6 @@ def main():
         primary_probs = {label: 0.0 for label in emotion_labels}
         primary_emotion = "No face"
         primary_confidence = 0.0
-        primary_age = "N/A"
 
         if results:
             # Choose the highest-confidence face as the main explanation target.
@@ -252,18 +212,8 @@ def main():
             primary_emotion = strongest[4]
             primary_confidence = strongest[5]
             primary_probs = strongest[6]
-            recent_emotions.append(primary_emotion)
 
         for (x, y, w, h, emotion, confidence, _) in results:
-            age_text = "Age: N/A"
-            if age_net is not None:
-                face_crop = frame[max(y, 0):max(y + h, 0), max(x, 0):max(x + w, 0)]
-                if face_crop.size > 0:
-                    age_label, age_conf = predict_age(face_crop, age_net)
-                    age_text = f"Age {age_label} ({age_conf * 100:.0f}%)"
-                    if primary_emotion == emotion and primary_age == "N/A":
-                        primary_age = age_label
-
             cv2.rectangle(frame, (x, y), (x + w, y + h), (5, 112, 197), 2)
             cv2.putText(
                 frame,
@@ -274,40 +224,19 @@ def main():
                 (12, 194, 130),
                 2,
             )
-            cv2.putText(
-                frame,
-                age_text,
-                (x, y + h + 24),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.65,
-                (17, 94, 150),
-                2,
-            )
 
         frame_window.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
         status_box.info(f"Current detected emotion: {primary_emotion}")
         faces_metric.metric("Faces detected", len(results))
         confidence_metric.metric("Top confidence", f"{primary_confidence * 100:.1f}%")
-        age_metric.metric("Predicted age", primary_age)
-
-        if age_model_error:
-            st.warning("Age model unavailable. Emotion detection still works. Details: " + age_model_error)
 
         with bars_placeholder.container():
             for label in emotion_labels:
                 prob = primary_probs.get(label, 0.0)
                 st.progress(prob, text=f"{label}: {prob * 100:.1f}%")
 
-        if recent_emotions:
-            trend_counts = Counter(recent_emotions)
-            trend_data = {
-                "Emotion": list(trend_counts.keys()),
-                "Count": list(trend_counts.values()),
-            }
-            trend_placeholder.bar_chart(trend_data, x="Emotion", y="Count", height=220)
-        else:
-            trend_placeholder.write("No trend data yet. Start detection to build recent history.")
+        # (Trend chart removed for simplified demo)
 
     if cap is not None:
         cap.release()
@@ -316,11 +245,9 @@ def main():
         status_box.info("Webcam is stopped. Enable Start webcam to begin live analysis.")
         faces_metric.metric("Faces detected", 0)
         confidence_metric.metric("Top confidence", "0.0%")
-        age_metric.metric("Predicted age", "N/A")
         with bars_placeholder.container():
             for label in emotion_labels:
                 st.progress(0.0, text=f"{label}: 0.0%")
-        trend_placeholder.write("Recent trend appears here after detection starts.")
 
 
 if __name__ == '__main__':
