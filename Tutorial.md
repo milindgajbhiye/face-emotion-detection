@@ -84,7 +84,14 @@ From repository root:
 streamlit run app.py
 ```
 
-Then open the local URL shown by Streamlit (usually `http://localhost:8501`).
+Expected success output includes a line similar to:
+
+```text
+You can now view your Streamlit app in your browser.
+Local URL: http://localhost:8501
+```
+
+Then open the shown local URL in your browser.
 
 ---
 
