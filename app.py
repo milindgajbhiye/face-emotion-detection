@@ -50,14 +50,11 @@ def style_page():
         """
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
-
             .stApp {
-                background:
-                    radial-gradient(1400px 900px at 10% -10%, rgba(0, 170, 255, 0.12), transparent),
-                    radial-gradient(1200px 800px at 100% 0%, rgba(255, 140, 66, 0.10), transparent),
-                    linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
+                background: linear-gradient(180deg, #f7fbff 0%, #eef6fb 100%);
                 color: #123;
                 font-family: 'Manrope', sans-serif;
+                padding: 18px 18px;
             }
 
             h1, h2, h3 {
@@ -66,51 +63,51 @@ def style_page():
             }
 
             .hero {
-                border-radius: 18px;
-                padding: 28px 28px 18px 28px;
-                background: linear-gradient(135deg, rgba(10, 38, 71, 0.94), rgba(16, 98, 141, 0.88));
+                border-radius: 12px;
+                padding: 22px;
+                background: linear-gradient(90deg, #0b69a3 0%, #0d8fc8 100%);
                 color: #f4fbff;
-                box-shadow: 0 16px 32px rgba(11, 42, 75, 0.2);
+                box-shadow: 0 12px 24px rgba(11, 42, 75, 0.12);
                 margin-bottom: 1rem;
             }
 
             .hero-title {
-                font-size: 2rem;
+                font-size: 2.4rem;
                 font-weight: 800;
-                margin-bottom: 0.35rem;
+                margin-bottom: 0.15rem;
                 color: #f4fbff;
             }
 
             .hero-sub {
                 font-size: 1rem;
                 opacity: 0.95;
-                line-height: 1.6;
+                line-height: 1.5;
                 margin: 0;
             }
 
             .panel {
                 background: #ffffff;
-                border: 1px solid #d9e4f1;
-                border-radius: 14px;
-                padding: 14px 16px;
-                box-shadow: 0 8px 24px rgba(10, 43, 75, 0.07);
+                border: 1px solid #e6eef6;
+                border-radius: 12px;
+                padding: 12px 14px;
+                box-shadow: 0 6px 12px rgba(10, 43, 75, 0.04);
             }
 
             .note {
-                background: #f5fbff;
-                border: 1px solid #cde7ff;
-                border-left: 4px solid #0090d0;
-                border-radius: 12px;
-                padding: 12px 14px;
-                color: #1a3d58;
-                font-size: 0.97rem;
-                line-height: 1.5;
+                background: #f8fcff;
+                border: 1px solid #dff2ff;
+                border-left: 4px solid #0b89c9;
+                border-radius: 10px;
+                padding: 10px 12px;
+                color: #113347;
+                font-size: 0.95rem;
+                line-height: 1.4;
             }
 
             .caption {
-                font-size: 0.9rem;
+                font-size: 0.92rem;
                 color: #375777;
-                margin-top: 0.2rem;
+                margin-top: 0.25rem;
             }
         </style>
         """,
@@ -144,7 +141,7 @@ def main():
     with left_col:
         st.markdown("### Live Camera")
         run = st.toggle("Start webcam", value=False)
-        frame_window = st.image([])
+        frame_window = st.image([], width=480)
 
         guide_col_1, guide_col_2 = st.columns(2)
         with guide_col_1:
@@ -152,7 +149,7 @@ def main():
                 """
                 <div class="panel">
                     <strong>How to use</strong>
-                    <div class="caption">1) Start webcam 2) Face camera 3) Check confidence + trends</div>
+                    <div class="caption">Click Start webcam → face the camera → observe the top prediction.</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -161,8 +158,8 @@ def main():
             st.markdown(
                 """
                 <div class="panel">
-                    <strong>Best quality tips</strong>
-                    <div class="caption">Good lighting, centered face, minimal motion improves stability.</div>
+                    <strong>Tips</strong>
+                    <div class="caption">Good lighting and a steady camera improve results.</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -252,7 +249,16 @@ def main():
 
         frame_window.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
-        status_box.info(f"Current detected emotion: {primary_emotion}")
+        # Large, clear current-emotion display
+        status_box.markdown(
+            f"""
+            <div style='padding:10px;border-radius:10px;background:#072e49;color:#fff;text-align:center'>
+              <div style='font-size:20px;font-weight:700'>{primary_emotion}</div>
+              <div style='font-size:13px;opacity:0.9'>Top confidence: {primary_confidence * 100:.0f}%</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         faces_metric.metric("Faces detected", len(results))
         confidence_metric.metric("Top confidence", f"{primary_confidence * 100:.1f}%")
 
