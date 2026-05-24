@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 import streamlit as st
 import tensorflow as tf
+from threading import Thread
 import os
 from collections import Counter
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # only errors
 
-#Load pre-trained emotion detection model
+# Path to pre-trained emotion detection model
 MODEL_PATH = 'emotion_model.h5'
-emotion_model = tf.keras.models.load_model(MODEL_PATH, compile=False)
 
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
@@ -123,6 +123,9 @@ def main():
     st.set_page_config(page_title="Real-Time Emotion Detector", page_icon="😊", layout="wide")
     style_page()
 
+    # Warm up model load in background so UI appears faster.
+    Thread(target=load_emotion_model, daemon=True).start()
+
     st.markdown(
         """
         <div class="hero">
@@ -185,14 +188,28 @@ def main():
 
     cap = None
     emotion_model = None
+    # performance tuning: skip frames to reduce CPU, and keep last results
+    frame_idx = 0
+    skip_frames = 3
+    last_results = []
 
     if run:
-        with st.spinner("Loading emotion model..."):
+        # Ensure model is available (background preload likely already cached)
+        with st.spinner("Preparing model..."):
             emotion_model = load_emotion_model()
-        cap = cv2.VideoCapture(0)
+
+        # Try DirectShow backend on Windows for faster startup, fallback if needed
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            cap = cv2.VideoCapture(0)
+
         if not cap.isOpened():
             st.error("Could not open webcam. Check permissions and try again.")
             return
+
+        # Lower resolution to reduce per-frame processing cost
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
 
     while run:
         ret, frame = cap.read()
@@ -200,7 +217,15 @@ def main():
             st.error("Could not read frame from webcam.")
             break
 
-        results = detect_emotion(frame)
+        frame_idx += 1
+        # Run inference only every `skip_frames` to reduce CPU usage
+        if frame_idx % skip_frames == 0:
+            if emotion_model is None:
+                emotion_model = load_emotion_model()
+            results = detect_emotion(frame, emotion_model)
+            last_results = results
+        else:
+            results = last_results
 
         primary_probs = {label: 0.0 for label in emotion_labels}
         primary_emotion = "No face"
