@@ -140,7 +140,21 @@ def main():
 
     with left_col:
         st.markdown("### Live Camera")
-        run = st.toggle("Start webcam", value=False)
+        # Visible Start / Stop buttons using session state (ensures label visibility)
+        if 'run' not in st.session_state:
+            st.session_state.run = False
+
+        btn_col1, btn_col2 = st.columns([1, 1])
+        with btn_col1:
+            if not st.session_state.run:
+                if st.button("Start webcam", key="start_btn"):
+                    st.session_state.run = True
+        with btn_col2:
+            if st.session_state.run:
+                if st.button("Stop webcam", key="stop_btn"):
+                    st.session_state.run = False
+
+        run = st.session_state.run
         frame_window = st.image([], width=480)
 
         guide_col_1, guide_col_2 = st.columns(2)
