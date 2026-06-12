@@ -24,7 +24,7 @@ A lightweight Python application that detects emotions from faces in real-time u
 - **Python** – Programming language
 - **TensorFlow / Keras** – Deep learning for emotion classification
 - **OpenCV** – Real-time face detection and image processing
-- **Streamlit** – Web interface to run the app easily
+- **Streamlit** – Python library - Web interface to run the app easily
 
 ---
 
